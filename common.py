@@ -1,54 +1,33 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import deb822
 import urllib
 import urllib2
 import re
+import gzip
 
-def readconfig(filename, options=[], conffile=False, strip_comments=True):
+def list_items(path=None, dirs=True, files=True):
     """
 
-    Reads a file whether if is a data or configuration file and returns
-    its content in a dictionary or a list.
+    Lists items under a given path (non-recursive, unnormalized).
 
-    :param filename: path to the file.
-    :param options: a list of aditional options.
-    :param conffile: if True then the result will be a dictionary else the
-                     result will be a list.
-    :param strip_comments: if True then the comments in the file will be
-                           deleted.
-    :return: a Dictionary or a List.
-    :rtype: ``dict`` ``list``
-
-    .. versionadded:: 0.1
+    :param path: a string containing a path.
+    :param dirs: if False, no directories will be included in the result.
+    :param files: if False, no files will be included in the result.
+    :return: a list of items under the given path (non-recursive).
+    :rtype: a list.
 
     """
-
-    try:
-        f = urllib.urlopen(filename) # No estoy seguro si esto sea una buena idea
-    except:
-        f = open(filename)
-
-    if conffile:
-        options = {}
-    else:
-        options = []
-
-    for line in f:
-        line = line.replace('\n', ' ')
-        line = line.replace('\t', ' ')
-        if '#' in line and strip_comments:
-            line, comment = line.split('#', 1)
-        if '=' in line and conffile:
-            option, value = line.split('=', 1)
-            options[option.strip()] = value.strip()
-        elif line and not conffile:
-            options.append(line.strip())
-
-    f.close()
-    return options
+    assert path
+    assert type(path) == str
+    return [f for f in os.listdir(path)
+            if (os.path.isdir(os.path.join(path, f)) and dirs)
+            or (os.path.isfile(os.path.join(path, f)) and files)]
 
 
-def create_cache(repository_root, cache_dir_path):
+def create_cache(repository_root, branch, cache_dir_path):
     """
 
     Creates the cache and all other necessary directories to organize the
@@ -63,40 +42,76 @@ def create_cache(repository_root, cache_dir_path):
     if not os.path.isdir(cache_dir_path):
         os.makedirs(cache_dir_path)
 
-    branches = (branch.split()
-                for branch in readconfig(os.path.join('distributions')))
-    
-    for name, release_path in branches:
-        release_path = os.path.join(repository_root, release_path)
-        try:
-            md5list = deb822.Release(urllib.urlopen(release_path)).get('MD5sum')
-        except urllib2.URLError, e:
-            logger.warning('Could not read release file in %s, error code #%s' % (release_path, e.code))
-        else:
-            for control_file_data in md5list:
-                #if re.match('[\w]*-?[\w]*/[\w]*-[\w]*/Packages.gz$', control_file_data['name']):
-                if re.match('[\w]*-?[\w]*/binary-(i386|amd64)/Packages.gz$', control_file_data['name']):
-                    component, architecture, _ = control_file_data['name'].split('/')
-                    remote_file = os.path.join(repository_root, 'dists',
-                                               name, control_file_data['name'])
-                    local_name = '_'.join([name, component,
-                                           architecture.replace('binary-', '')])
-                    f = os.path.join(cache_dir_path, local_name + '.gz')
+    release_path = os.path.join(repository_root, 'dists', branch, 'Release')
+    try:
+        md5list = deb822.Release(urllib.urlopen(release_path)).get('MD5sum')
+    except urllib2.URLError, e:
+        pass
+        #logger.warning('Could not read release file in %s, error code #%s' % (release_path, e.code))
+    else:
+        for control_file_data in md5list:
+            if re.match('[\w]*-?[\w]*/binary-(i386|amd64)/Packages.gz$', control_file_data['name']):
+                component, architecture, _ = control_file_data['name'].split('/')
+                remote_file = os.path.join(repository_root, 'dists',
+                                           branch, control_file_data['name'])
+                local_name = '_'.join([branch, component,
+                                       architecture.replace('binary-', '')])
+                f = os.path.join(cache_dir_path, local_name + '.gz')
 
-                    if not os.path.isfile(f):
+                if not os.path.isfile(f):
+                    try:
+                        urllib.urlretrieve(remote_file, f)
+                    except urllib2.URLError, e:
+                        pass
+                        #logger.error('Could not get %s, error code #%s' % (remote_file, e.code))
+                else:
+                    if md5Checksum(f) != control_file_data['md5sum']:
+                        os.remove(f)
                         try:
                             urllib.urlretrieve(remote_file, f)
                         except urllib2.URLError, e:
-                            logger.error('Could not get %s, error code #%s' % (remote_file, e.code))
-                    else:
-                        if md5Checksum(f) != control_file_data['md5sum']:
-                            os.remove(f)
-                            try:
-                                urllib.urlretrieve(remote_file, f)
-                            except urllib2.URLError, e:
-                                logger.error('Could not get %s, error code #%s' % (remote_file, e.code))
+                            pass
+                            #logger.error('Could not get %s, error code #%s' % (remote_file, e.code))
+
+def get_deps(file):
+    control_file = deb822.apt_pkg.TagFile(open(file))
+    for section in control_file:
+        if not section.has_key('Package'):
+            next
+        if section.has_key('Depends'):
+            clean_deps = []
+            for dep in section.get('Depends').split(","):
+                clean_deps.append(dep.strip())
+            return clean_deps
+
+
+def check_deps(cache_dir_path, deps_list):
+    control_files = list_items(cache_dir_path, False, True)
+    for control_file in control_files:
+        name, _ = control_file.split(".")
+        branch, comp, _ = name.split("_")
+        control_file_path = os.path.join(cache_dir_path, control_file)
+        for paragraph in deb822.Packages.iter_paragraphs(gzip.open(control_file_path, 'r')):
+            if paragraph.get('Package') in deps_list:    
+                deps_list.remove(paragraph.get('Package'))
+            
+    if not deps_list:
+        print "Las dependencias estan satisfechas"
+    else:
+        print deps_list
 
 def main():
-    create_cache('http://10.16.106.224/debian', '/home/fran/cache')
+
+    cache_path = "/home/fran/cache"
+
+    repo_url = 'http://10.16.106.224/debian'
+
+    branch = 'jessie'
+
+    create_cache(repo_url, branch, cache_path)
+
+    depends = get_deps('control')
+
+    check_deps(cache_path, depends)
 
 main()
