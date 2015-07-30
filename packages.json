@@ -1,0 +1,12 @@
+{
+    "packages": [
+	{
+	    "name": "Canaima Bienvenido Gnome",
+	    "license": "GPL-3.0+",
+  	    "description": "Aplicación de bienvenida para Canaima GNU/Linux http://canaima.softwarelibre.gob.ve/",
+	    "type": "git",
+	    "url": "https://github.com/CanaimaGNULinux/canaima-bienvenido-gnome.git",
+	    "version": "master"
+	}
+	]
+}
