@@ -92,9 +92,13 @@ def check_deps(cache_dir_path, deps_list):
         branch, comp, _ = name.split("_")
         control_file_path = os.path.join(cache_dir_path, control_file)
         for paragraph in deb822.Packages.iter_paragraphs(gzip.open(control_file_path, 'r')):
-            if paragraph.get('Package') in deps_list:    
+            if paragraph.get('Package') in deps_list:
                 deps_list.remove(paragraph.get('Package'))
-            
+            if paragraph.has_key('Provides'):
+                for prov in paragraph.get('Provides').split(","):
+                    if prov.strip() in deps_list:
+                        deps_list.remove(prov.strip())
+
     if not deps_list:
         print "Las dependencias estan satisfechas"
     else:
@@ -105,6 +109,7 @@ def main():
     cache_path = "/home/fran/cache"
 
     repo_url = 'http://10.16.106.224/debian'
+    #repo_url = 'http://debian.cantv.net/debian'
 
     branch = 'jessie'
 

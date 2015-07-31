@@ -8,7 +8,7 @@ Homepage: http://canaima.softwarelibre.gob.ve/
 
 Package: canaima-base
 Architecture: all
-Depends: acpi-support, base-files, base-passwd, bash-completion, bsdutils, dash, debconf-i18n, diffutils, dmraid, dnsmasq, dosfstools, e2fsprogs, fakeroot, findutils, fuse, gcc, gcp, grep, grub-pc, gvfs-fuse, gzip, hdparm, hostname, init-system-helpers, initramfs-tools, intltool-debian, iotop, iproute2, laptop-detect, lm-sensors, localepurge, locales, login, lsb-release, lshw, lvm2, mawk, mtools, ncurses-base, ncurses-bin, ntfs-3g, ntpdate, pciutils, perl-base, pm-utils, prelink, powertop, sed, sensible-utils, ssh, sudo, tar, udisks, util-linux, vim-tiny, xfsprogs, xz-utils, sublime-text
+Depends: acpi-support, base-files, base-passwd, bash-completion, bsdutils, dash, debconf-i18n, diffutils, dmraid, dnsmasq, dosfstools, e2fsprogs, fakeroot, findutils, fuse, gcc, gcp, grep, grub-pc, gvfs-fuse, gzip, hdparm, hostname, init-system-helpers, initramfs-tools, intltool-debian, iotop, iproute2, laptop-detect, lm-sensors, localepurge, locales, login, lsb-release, lshw, lvm2, mawk, mtools, ncurses-base, ncurses-bin, ntfs-3g, ntpdate, pciutils, perl-base, pm-utils, prelink, powertop, sed, sensible-utils, ssh, sudo, tar, udisks, util-linux, vim-tiny, xfsprogs, xz-utils, sublime-text, otf-stix, libgl1-mesa-glx | libgl1
 Description: Metapaquete que agrupa las aplicaciones básicas para Canaima
  Este metapaquete agrupa un conjunto de aplicaciones básicas que conforman
  una base mínima para la Metadistribución Canaima GNU/Linux.
